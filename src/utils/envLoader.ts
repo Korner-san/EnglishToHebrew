@@ -37,15 +37,7 @@ export const loadEnvVariables = (): void => {
 
   // Validate required environment variables
   const requiredVars = [
-    'OPENAI_API_KEY',
-    'GOOGLE_SHEET_ID',
-    'GOOGLE_SERVICE_ACCOUNT_EMAIL',
-    'GOOGLE_PRIVATE_KEY'
-  ];
-
-  // Optional variables (won't fail if missing)
-  const optionalVars = [
-    'GOOGLE_DOCS_FOLDER_ID'
+    'OPENAI_API_KEY'
   ];
 
   const missingVars = requiredVars.filter(varName => !process.env[varName]);
@@ -53,7 +45,7 @@ export const loadEnvVariables = (): void => {
   if (missingVars.length > 0) {
     console.error('❌ Missing required environment variables:', missingVars);
     console.error('\n💡 Your .env.local file should contain:');
-    requiredVars.forEach(v => console.error(`   ${v}=...`));
+    console.error('OPENAI_API_KEY=your_openai_api_key_here');
     throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
   }
 

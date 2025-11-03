@@ -1,24 +1,27 @@
-# PDF Translation and Summarization Tool
+# PDF Translation & Summarization Tool (English → Hebrew)
 
-Automated document translation and summarization from any language to Hebrew using ChatGPT API and Google Sheets.
+Automatically translates PDF documents from English to Hebrew with intelligent chapter detection and structured summarization.
 
 ## Features
 
-- 🔄 **Automated PDF Processing**: Split PDF into individual pages
-- 🤖 **AI-Powered Translation**: Translate entire documents to Hebrew using GPT-4o
-- 📝 **Smart Summarization**: Generate concise 4-6 sentence summaries in Hebrew
-- 📊 **Google Sheets Integration**: Automatically save results to Google Sheets
-- 💾 **CSV Backup**: Local backup of all translations
-- ⏱️ **Rate Limiting**: Respects API limits (1 request/second)
-- 📋 **Clear Logging**: Track progress for each page
-- 🔧 **Modular Code**: Easy to debug and customize
+- ✅ **Full Translation** with chapter/section titles preserved
+- ✅ **Structured Summary** organized by chunks with titles
+- ✅ **Chapter Detection** - Automatically identifies CHAPTER, section, and subsection headings
+- ✅ **Context-Aware** - Maintains continuity between pages
+- ✅ **Simple Output** - Just 2 TXT files
 
-## Prerequisites
+## Output Files
 
-- Node.js 18+ installed
-- OpenAI API key with GPT-4o access
-- Google Cloud Service Account with Sheets API enabled
-- A Google Sheet created and shared with your service account
+1. **`translation_TIMESTAMP.txt`** - Full Hebrew translation with:
+   - Chapter headings (marked with `=====`)
+   - Section headings (marked with `---`)
+   - All content translated and flowing naturally
+
+2. **`summary_TIMESTAMP.txt`** - Structured Hebrew summary with:
+   - Each 10k character chunk summarized separately
+   - Chapter/section titles for each chunk
+   - Page ranges indicated
+   - 15-20 sentence comprehensive summary per chunk
 
 ## Setup
 
@@ -28,140 +31,111 @@ Automated document translation and summarization from any language to Hebrew usi
 npm install
 ```
 
-### 2. Configure Environment Variables
+### 2. Create `.env.local`
 
-Make sure your `.env.local` file exists in the project root with the following variables:
+Create a file named `.env.local` in the project root:
 
-```env
-OPENAI_API_KEY=sk-xxxx
-GOOGLE_SHEETS_ID=your_google_sheet_id_here
-GOOGLE_SERVICE_ACCOUNT_EMAIL=your_service_account_email@project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
+```
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-**Important Notes:**
-- The `GOOGLE_SHEETS_ID` is found in your Google Sheet URL: `https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/edit`
-- The `GOOGLE_PRIVATE_KEY` should include the quotes and `\n` newline characters
-- Make sure to share your Google Sheet with the service account email
-
-### 3. Build the Project
+### 3. Run
 
 ```bash
-npm run build
+npm run translate "path/to/your/document.pdf"
 ```
 
-## Usage
-
-### Method 1: Using Command Line Argument
-
+Example:
 ```bash
-npm run dev path/to/your/document.pdf
-```
-
-### Method 2: Using Default Input File
-
-Place your PDF file as `input.pdf` in the project root and run:
-
-```bash
-npm run dev
-```
-
-### Method 3: Run Built Version
-
-```bash
-npm start path/to/your/document.pdf
-```
-
-## Output
-
-### Google Sheets
-
-Results are automatically saved to your Google Sheet with the following columns:
-
-| עמוד (Page) | תרגום (Translation) | סיכום (Summary) | כותרת המאמר (Article Title) |
-|-------------|---------------------|-----------------|----------------------------|
-| 1           | Full Hebrew translation... | 4-6 sentence summary... | Article title... |
-| 2           | Full Hebrew translation... | 4-6 sentence summary... | Article title... |
-
-### CSV Backup
-
-A timestamped CSV file is created in the project root:
-- `translation_backup_2025-11-02T12-30-45.csv`
-
-## Project Structure
-
-```
-src/
-├── translateToSheets.ts          # Main script
-├── utils/
-│   ├── envLoader.ts              # Environment variable loader
-│   ├── pdfProcessor.ts           # PDF splitting utilities
-│   ├── openaiProcessor.ts        # OpenAI API integration
-│   ├── sheetsProcessor.ts        # Google Sheets API integration
-│   └── csvBackup.ts              # CSV backup utilities
+npm run translate "Materials_and_Media C. Moon.pdf"
 ```
 
 ## How It Works
 
-1. **Load Configuration**: Reads environment variables from `.env.local`
-2. **Initialize APIs**: Sets up OpenAI and Google Sheets clients
-3. **Split PDF**: Converts each page to a high-quality JPG image
-4. **Process Pages**: For each page:
-   - Sends image to GPT-4o vision API
-   - Requests full Hebrew translation
-   - Generates 4-6 sentence summary in Hebrew
-   - Extracts article title
-   - Saves to Google Sheets immediately
-   - Appends to CSV backup
-   - Waits 1 second (rate limiting)
-5. **Cleanup**: Removes temporary image files
-6. **Summary**: Displays completion statistics
+1. **PDF → Images** - Converts each page to PNG (pure JavaScript, no external dependencies)
+2. **Page-by-Page Translation** - Each page is:
+   - Analyzed for chapter/section titles (CHAPTER, bold text, large text, etc.)
+   - Translated to Hebrew with context from previous page
+   - Structured information extracted
+3. **Full Translation** - All pages combined with clear chapter/section markers
+4. **Chunk-Based Summarization** - Content grouped into ~10k character chunks by chapter/section
+5. **Structured Summary** - Each chunk gets a comprehensive 15-20 sentence Hebrew summary
 
-## Rate Limiting
+## Example Output
 
-The script includes a 1-second delay between API calls to respect OpenAI's rate limits. For large documents, this means:
-- 10 pages ≈ 10 seconds
-- 50 pages ≈ 50 seconds
-- 100 pages ≈ 100 seconds
+### Translation File:
+```
+================================================================================
+פרק 1: היסטוריה של חומרים ומדיה בטיפול באמנות
+================================================================================
 
-## Error Handling
+--- מבוא ---
 
-- If a page fails to process, an error result is saved and the script continues
-- All results (including errors) are saved to both Google Sheets and CSV
-- Temporary files are cleaned up even if errors occur
+[translated content here...]
+
+--- חומרים מסורתיים ---
+
+[translated content here...]
+```
+
+### Summary File:
+```
+================================================================================
+פרק 1: היסטוריה של חומרים ומדיה בטיפול באמנות
+(עמודים 1-8)
+================================================================================
+
+[15-20 sentence comprehensive summary of pages 1-8]
+
+================================================================================
+חומרים וטכניקות בטיפול באמנות
+(עמודים 9-15)
+================================================================================
+
+[15-20 sentence comprehensive summary of pages 9-15]
+```
+
+## Processing Time
+
+- **~12 seconds per page** for translation
+- **~5 seconds per chunk** for summarization
+- **Example:** 46-page document = ~8-10 minutes translation + ~1 minute summarization
+
+## Requirements
+
+- Node.js 16+
+- OpenAI API key with GPT-4o access
+- ~2MB disk space per PDF page (temporary, deleted after processing)
+
+## Project Structure
+
+```
+├── src/
+│   ├── main.ts                    # Main script
+│   └── utils/
+│       ├── envLoader.ts           # Environment variable loader
+│       ├── openaiProcessor.ts     # OpenAI API integration
+│       └── pdfProcessorJS.ts      # PDF to image conversion
+├── .env.local                     # Your API keys (create this)
+├── package.json
+└── README.md
+```
 
 ## Troubleshooting
 
-### Issue: "PDF file not found"
+### "Missing required environment variables"
+- Ensure `.env.local` exists in the project root
+- Verify it contains `OPENAI_API_KEY=your_key`
+
+### "PDF not found"
 - Check the file path is correct
-- Ensure the PDF exists in the specified location
+- Use quotes if the path contains spaces
 
-### Issue: "Missing environment variables"
-- Verify `.env.local` exists in project root
-- Check all required variables are set
-- Ensure no typos in variable names
-
-### Issue: "Google Sheets API error"
-- Verify your Google Sheet is shared with the service account email
-- Check the `GOOGLE_SHEETS_ID` is correct
-- Ensure the service account has edit permissions
-
-### Issue: "OpenAI API error"
-- Verify your API key is valid
-- Check you have GPT-4o access
-- Ensure you have sufficient API credits
-
-## Dependencies
-
-- **openai**: ChatGPT API client
-- **pdf-lib**: PDF manipulation
-- **pdf2pic**: PDF to image conversion
-- **googleapis**: Google Sheets API client
-- **csv-writer**: CSV file creation
-- **dotenv**: Environment variable management
-- **fs-extra**: Enhanced file system operations
+### Translation fails for some pages
+- Retries automatically up to 3 times
+- Failed pages are marked in console output
+- Successful pages are still saved
 
 ## License
 
-ISC
-
+MIT

@@ -7,6 +7,8 @@ export interface TranslationResult {
   translation: string;
   summary: string;
   articleTitle: string;
+  chapterTitle?: string;
+  sectionTitle?: string;
   status: 'OK' | 'FAILED' | 'RETRY';
   retryCount?: number;
 }
@@ -88,6 +90,7 @@ const isValidTranslation = (translation: string, summary: string): boolean => {
  * @param imagePath - Path to the page image or PDF
  * @param pageNumber - Page number for tracking
  * @param previousContext - Last 200 characters from previous page for continuity
+ * @param chapterContext - Current chapter/section title for context
  * @param maxRetries - Maximum number of retry attempts (default: 3)
  * @returns Translation result with Hebrew translation, summary, and article title
  */
@@ -96,6 +99,7 @@ export const processPage = async (
   imagePath: string,
   pageNumber: number,
   previousContext: string = '',
+  chapterContext: string = '',
   maxRetries: number = 3
 ): Promise<TranslationResult> => {
   try {
@@ -113,26 +117,53 @@ export const processPage = async (
         const base64File = await encodeFileToBase64(imagePath);
         const mimeType = getFileMimeType(imagePath);
 
-        // Build context instruction if we have previous page context
-        const contextInstruction = previousContext 
-          ? `\n\n**חשוב**: הדף הקודם הסתיים בטקסט הבא:\n"${previousContext}"\n\nאנא המשך את התרגום בצורה חלקה וטבעית מהטקסט הזה.\n\n`
-          : '';
+        // Build context instruction
+        let contextInstruction = '';
+        
+        if (chapterContext) {
+          contextInstruction += `\n\n**הקשר מבני**: דף זה נמצא תחת הפרק/סעיף:\n"${chapterContext}"\n`;
+        }
+        
+        if (previousContext) {
+          contextInstruction += `\n**המשכיות טקסט**: הדף הקודם הסתיים בטקסט הבא:\n"${previousContext}"\n\nאנא המשך את התרגום בצורה חלקה וטבעית מהטקסט הזה.\n`;
+        }
 
-        // Create the prompt for translation and summarization in Hebrew
-        const prompt = `אנא נתח את התמונה הזו של דף מסמך.${contextInstruction}
-ספק את המידע הבא בעברית:
+        // Create the prompt - CRITICAL: Detect structure first, then translate
+        const prompt = `You are analyzing page ${pageNumber} of an academic document. 
 
-1. **תרגום מלא**: תרגם את כל הטקסט בדף לעברית. שמור על המבנה והפורמט המקורי ככל האפשר.${previousContext ? ' המשך בצורה חלקה מהטקסט הקודם.' : ''}
+${contextInstruction ? `CONTEXT: ${contextInstruction}\n` : ''}
 
-2. **סיכום**: כתב סיכום קצר של 4-6 משפטים בעברית שמתאר את התוכן העיקרי של הדף.
+**CRITICAL FIRST STEP - IDENTIFY DOCUMENT STRUCTURE:**
+Before translating, carefully examine this page for ANY of these structural elements:
+- CHAPTER headings (words like "CHAPTER", large centered text, numbered sections)
+- Section titles (bold headings, emphasized text, capitalized titles)
+- Subsection titles (smaller headings, italic/bold text)
 
-3. **כותרת המאמר**: ספק כותרת קצרה ותמציתית בעברית שמתארת את נושא המאמר או הדף.
+Look for text that is:
+- LARGER than body text
+- CENTERED or prominently placed
+- ALL CAPS or Title Case
+- BOLD or emphasized
+- Numbers followed by titles (like "1. Introduction" or "CHAPTER 1")
 
-אנא השב בפורמט JSON הבא:
+**YOUR TASK:**
+1. **Identify Chapter Title** (if exists on this page): Extract the EXACT English text of any chapter heading. Look for "CHAPTER X" or major section titles. If found, translate to Hebrew. If no chapter on this page, leave empty.
+
+2. **Identify Section Title** (if exists on this page): Extract the EXACT English text of any section/subsection heading. If found, translate to Hebrew. If none, leave empty.
+
+3. **Full Translation**: Translate ALL text on the page to Hebrew. Maintain structure and formatting. If there are headings, preserve them formatted separately.${previousContext ? ' Continue smoothly from the previous page context.' : ''}
+
+4. **Summary**: Write a 4-6 sentence Hebrew summary describing the main content of this page.
+
+5. **Article Title**: Provide a short Hebrew title describing the article's topic.
+
+Return ONLY valid JSON (no markdown code blocks):
 {
-  "translation": "התרגום המלא לעברית כאן",
-  "summary": "הסיכום בעברית כאן",
-  "articleTitle": "כותרת המאמר בעברית"
+  "translation": "Full Hebrew translation here",
+  "summary": "Hebrew summary here",
+  "articleTitle": "Article title in Hebrew",
+  "chapterTitle": "Chapter title in Hebrew (or empty string if no chapter heading on this page)",
+  "sectionTitle": "Section title in Hebrew (or empty string if no section heading on this page)"
 }`;
 
         // Call OpenAI API with vision
@@ -171,6 +202,8 @@ export const processPage = async (
           translation: string;
           summary: string;
           articleTitle: string;
+          chapterTitle?: string;
+          sectionTitle?: string;
         };
 
         try {
@@ -194,6 +227,14 @@ export const processPage = async (
           throw new Error('Translation validation failed');
         }
 
+        // Log chapter/section if found
+        if (parsedResponse.chapterTitle) {
+          console.log(`   📚 Chapter found: ${parsedResponse.chapterTitle}`);
+        }
+        if (parsedResponse.sectionTitle) {
+          console.log(`   📑 Section found: ${parsedResponse.sectionTitle}`);
+        }
+
         console.log(`✅ Page ${pageNumber} processed successfully`);
 
         return {
@@ -201,6 +242,8 @@ export const processPage = async (
           translation: parsedResponse.translation,
           summary: parsedResponse.summary,
           articleTitle: parsedResponse.articleTitle,
+          chapterTitle: parsedResponse.chapterTitle || '',
+          sectionTitle: parsedResponse.sectionTitle || '',
           status: 'OK',
           retryCount: retryCount
         };
@@ -224,6 +267,8 @@ export const processPage = async (
       translation: `שגיאה בעיבוד דף ${pageNumber} - ${maxRetries + 1} ניסיונות נכשלו`,
       summary: `FAILED - ${maxRetries + 1} attempts - manual review needed`,
       articleTitle: 'שגיאה',
+      chapterTitle: '',
+      sectionTitle: '',
       status: 'FAILED',
       retryCount: maxRetries + 1
     };
@@ -235,6 +280,8 @@ export const processPage = async (
       translation: `שגיאה קריטית בעיבוד דף ${pageNumber}`,
       summary: 'FAILED - Critical error',
       articleTitle: 'שגיאה',
+      chapterTitle: '',
+      sectionTitle: '',
       status: 'FAILED',
       retryCount: 0
     };

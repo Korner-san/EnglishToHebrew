@@ -15,8 +15,9 @@ temp_pages/
 *.log
 
 # Output files (users will generate their own)
-translation_backup_*.csv
-translations_full_*.txt
+translation_*.txt
+summary_*.txt
+*.csv
 
 # IDE
 .vscode/
@@ -32,6 +33,3 @@ Thumbs.db
 # PDFs (users will add their own)
 *.pdf
 !example.pdf
-
-# Git
-.git/
